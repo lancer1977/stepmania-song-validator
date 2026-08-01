@@ -1,0 +1,18 @@
+#TITLE:Bad Measure Division;
+#ARTIST:Measure Tester;
+#MUSIC:song.mp3;
+#OFFSET:0.0;
+#BPMS:0.0=120.00;
+#STOPS:;
+#SELECTABLE:YES;
+
+#NOTES:
+     dance-single:
+     Test:
+     Easy:
+     4:
+     0.000,0.000,0.000,0.000,0.000:
+1000
+0010
+0100
+;

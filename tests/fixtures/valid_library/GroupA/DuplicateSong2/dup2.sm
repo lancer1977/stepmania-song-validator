@@ -1,0 +1,19 @@
+#TITLE:Duplicate Track;
+#ARTIST:Copy Artist;
+#MUSIC:dup2.mp3;
+#OFFSET:0.0;
+#BPMS:0.0=140.00;
+#STOPS:;
+#SELECTABLE:YES;
+
+#NOTES:
+     dance-single:
+     Test:
+     Hard:
+     8:
+     0.000,0.000,0.000,0.000,0.000:
+1000
+0010
+0100
+0001
+;

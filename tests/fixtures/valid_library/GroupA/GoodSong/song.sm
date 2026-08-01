@@ -1,0 +1,32 @@
+#TITLE:Good Song;
+#SUBTITLE:;
+#ARTIST:Test Artist;
+#TITLETRANSLIT:;
+#ARTISTTRANSLIT:;
+#CREDIT:;
+#MUSIC:song.mp3;
+#OFFSET:0.0;
+#SAMPLESTART:0.000;
+#SAMPLELENGTH:0.000;
+#BPMS:0.0=120.00;
+#STOPS:;
+#SELECTABLE:YES;
+
+#NOTES:
+     dance-single:
+     Test:
+     Easy:
+     4:
+     0.000,0.000,0.000,0.000,0.000:
+// Measure 0
+1000
+0010
+0100
+0001
+,
+// Measure 1
+0000
+1000
+0000
+0100
+;

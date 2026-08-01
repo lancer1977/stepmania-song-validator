@@ -1,0 +1,19 @@
+#TITLE:Bad Timing Data;
+#ARTIST:Timing Tester;
+#MUSIC:song.mp3;
+#OFFSET:0.0;
+#BPMS:0.0=abc,4.0=-120.00,2.0=140.00;
+#STOPS:1.0=-0.5;
+#SELECTABLE:YES;
+
+#NOTES:
+     dance-single:
+     Test:
+     Easy:
+     4:
+     0.000,0.000,0.000,0.000,0.000:
+1000
+0010
+0100
+0001
+;
