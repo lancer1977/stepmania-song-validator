@@ -9,6 +9,35 @@ permissions:
   contents: write
 
 jobs:
+  publish-pypi:
+    name: Publish to PyPI (trusted publishing)
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+    # Independent of the `release` job on purpose: this job publishes to PyPI
+    # using Trusted Publishing (OIDC), which requires a one-time manual setup
+    # on pypi.org (Add trusted publisher) before it will authenticate
+    # successfully. Until that setup is done, this job is expected to fail.
+    # It runs in its own job (not a step in `release`) so that failure never
+    # blocks or cascades into the GitHub release/tag creation below.
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install build tooling
+        run: python -m pip install ".[build]"
+
+      - name: Build release package
+        run: python3 -m build
+
+      - name: Publish package to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+
   release:
     name: Build and publish package
     runs-on: ubuntu-latest
