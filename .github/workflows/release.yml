@@ -1,0 +1,52 @@
+name: Release
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Build and publish package
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install build tooling
+        run: python -m pip install ".[build]"
+
+      - name: Run tests
+        run: python3 -m unittest discover -s tests -p 'test_*.py'
+
+      - name: Resolve release version
+        id: version
+        run: |
+          base_version="$(python3 -c 'import tomllib; print(tomllib.load(open("pyproject.toml", "rb"))["project"]["version"])')"
+          echo "base_version=${base_version}" >> "$GITHUB_OUTPUT"
+          echo "tag=v${base_version}-build.${GITHUB_RUN_NUMBER}" >> "$GITHUB_OUTPUT"
+
+      - name: Build release package
+        run: python3 -m build
+
+      - name: Create release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${{ steps.version.outputs.tag }}" \
+            dist/stepmania_song_validator-${{ steps.version.outputs.base_version }}-py3-none-any.whl \
+            dist/stepmania_song_validator-${{ steps.version.outputs.base_version }}.tar.gz \
+            --title "stepmania-song-validator ${{ steps.version.outputs.tag }}" \
+            --prerelease \
+            --generate-notes \
+            --target "${{ github.sha }}"

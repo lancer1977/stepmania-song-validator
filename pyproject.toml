@@ -1,0 +1,27 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "stepmania-song-validator"
+version = "0.1.0"
+description = "Static validator for StepMania/ITGmania song libraries: chart integrity, duplicate detection, and Batocera song-discovery compatibility checks"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { file = "LICENSE" }
+dependencies = [
+]
+
+[project.optional-dependencies]
+build = [
+  "build>=1.2.0",
+]
+dev = [
+  "build>=1.2.0",
+]
+
+[project.scripts]
+stepmania-song-validator = "stepmania_song_validator.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
