@@ -17,9 +17,14 @@ jobs:
     # Independent of the `release` job on purpose: this job publishes to PyPI
     # using Trusted Publishing (OIDC), which requires a one-time manual setup
     # on pypi.org (Add trusted publisher) before it will authenticate
-    # successfully. Until that setup is done, this job is expected to fail.
-    # It runs in its own job (not a step in `release`) so that failure never
-    # blocks or cascades into the GitHub release/tag creation below.
+    # successfully. It runs in its own job (not a step in `release`) so that
+    # failure never blocks or cascades into the GitHub release/tag creation
+    # below.
+    #
+    # Gated on the PYPI_PUBLISHING_ENABLED repo variable so it no-ops (shows
+    # as skipped, not failed) until PyPI-side setup is actually done. Flip it
+    # on with: gh variable set PYPI_PUBLISHING_ENABLED --body true
+    if: vars.PYPI_PUBLISHING_ENABLED == 'true'
     steps:
       - name: Checkout
         uses: actions/checkout@v4
