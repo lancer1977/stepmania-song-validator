@@ -1,12 +1,18 @@
 name: Release
 
 on:
-  push:
-    branches:
-      - main
+  workflow_dispatch:
+    inputs:
+      source_sha:
+        description: Full 40-character commit SHA to validate and publish
+        required: true
+        type: string
 
 permissions:
   contents: write
+
+env:
+  SOURCE_SHA: ${{ inputs.source_sha }}
 
 jobs:
   publish-pypi:
@@ -28,6 +34,15 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ inputs.source_sha }}
+
+      - name: Verify immutable release source
+        run: |
+          test "${#SOURCE_SHA}" = 40
+          resolved_sha="$(git rev-parse --verify "${SOURCE_SHA}^{commit}")"
+          test "$SOURCE_SHA" = "$resolved_sha"
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -51,6 +66,13 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          ref: ${{ inputs.source_sha }}
+
+      - name: Verify immutable release source
+        run: |
+          test "${#SOURCE_SHA}" = 40
+          resolved_sha="$(git rev-parse --verify "${SOURCE_SHA}^{commit}")"
+          test "$SOURCE_SHA" = "$resolved_sha"
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -92,4 +114,4 @@ jobs:
             --title "stepmania-song-validator ${{ steps.version.outputs.tag }}" \
             --prerelease \
             --generate-notes \
-            --target "${{ github.sha }}"
+            --target "$SOURCE_SHA"
