@@ -42,7 +42,7 @@ jobs:
 
       - name: Verify immutable release source
         run: |
-          test "$SOURCE_SHA" =~ ^[0-9a-f]{40}$
+          [[ "$SOURCE_SHA" =~ ^[0-9a-f]{40}$ ]]
           resolved_sha="$(git rev-parse --verify "${SOURCE_SHA}^{commit}")"
           test "$SOURCE_SHA" = "$resolved_sha"
           git merge-base --is-ancestor "$SOURCE_SHA" refs/remotes/origin/main
@@ -77,7 +77,7 @@ jobs:
 
       - name: Verify immutable release source
         run: |
-          test "$SOURCE_SHA" =~ ^[0-9a-f]{40}$
+          [[ "$SOURCE_SHA" =~ ^[0-9a-f]{40}$ ]]
           resolved_sha="$(git rev-parse --verify "${SOURCE_SHA}^{commit}")"
           test "$SOURCE_SHA" = "$resolved_sha"
           git merge-base --is-ancestor "$SOURCE_SHA" refs/remotes/origin/main
