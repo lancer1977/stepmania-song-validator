@@ -27,9 +27,12 @@ in this repository, documentation, logs, or shell history.
 
 ## Required capability and isolation
 
-The runner needs Linux X64, Git, Bash, Python 3.11 support for
-`actions/setup-python`, and outbound package access for `pip`. The workflow
-keeps the existing `.[build]` installation, unit-test suite, package build, and
+The runner needs Linux X64, Git, Bash, `/usr/bin/python3.11` with `venv`, and
+outbound package access for `pip`. Arch is a rolling distribution, so the
+workflow deliberately does not use `actions/setup-python`: that action does
+not provide compatible rolling-Arch Python builds. CI asserts Python 3.11,
+creates a job-local virtual environment under `RUNNER_TEMP`, and then keeps the
+existing `.[build]` installation, unit-test suite, package build, and
 fixture-library CLI smoke checks in `scripts/validate.sh`.
 
 This validation identity must not have PyPI publishing identity, GitHub release
@@ -53,6 +56,9 @@ accepted commit in a trusted repository branch and run CI there.
 Run the same validation locally before opening a pull request:
 
 ```bash
+/usr/bin/python3.11 -c 'import sys; assert sys.version_info[:2] == (3, 11), sys.version'
+/usr/bin/python3.11 -m venv .venv
+. .venv/bin/activate
 python -m pip install ".[build]"
 bash scripts/validate.sh
 python -m unittest tests.test_ci_policy
