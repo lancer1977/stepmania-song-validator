@@ -37,7 +37,8 @@ class WorkflowRunnerPolicyTests(unittest.TestCase):
 
         self.assertIn("pull_request_target:", workflow)
         self.assertIn(FORK_BLOCKER, workflow)
-        self.assertIn(TRUSTED_RUNNER, workflow)
+        self.assertIn("runs-on: ubuntu-latest", workflow)
+        self.assertNotIn(TRUSTED_RUNNER, workflow)
         self.assertIn("exit 1", workflow)
         self.assertIn("reproduce the accepted commit", workflow)
         self.assertNotIn("actions/checkout", workflow)
