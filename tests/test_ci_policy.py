@@ -25,7 +25,7 @@ class WorkflowRunnerPolicyTests(unittest.TestCase):
         self.assertIn(FORK_GUARD, workflow)
         self.assertIn("permissions:\n  contents: read", workflow)
         self.assertIn("persist-credentials: false", workflow)
-        self.assertIn("uses: actions/setup-python@v5", workflow)
+        self.assertIn("uses: actions/setup-python@v6", workflow)
         self.assertIn('python-version: "3.11"', workflow)
         self.assertNotIn("/usr/bin/python3.11", workflow)
         self.assertIn('run: python -m pip install ".[build]"', workflow)
