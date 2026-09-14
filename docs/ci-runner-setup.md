@@ -39,8 +39,10 @@ properties before accepting validation jobs.
 
 This validation identity must not have PyPI publishing identity, GitHub release
 write authority, deployment credentials, production secrets, SSH keys, a
-Docker socket, physical-device access, or private-network capabilities
-unrelated to package validation. Release and PyPI publication remain on their
+Docker socket or physical-device access. Network access is limited by the
+container boundary but still uses the host's ordinary routed egress for GitHub
+and Python package downloads; it is not a LAN-denial security boundary.
+Release and PyPI publication remain on their
 separate workflow and authority boundary.
 
 ## Trust and capacity boundary
