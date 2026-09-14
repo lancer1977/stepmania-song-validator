@@ -18,22 +18,24 @@ gh api repos/lancer1977/stepmania-song-validator/actions/runners \
 ```
 
 The expected repository-scoped runner name is
-`arch-server-stepmania-song-validator-ci`. On `arch-server`, its files live at
-`~/.local/share/github-runners/stepmania-song-validator-ci/` and its user
-service is `github-runner@stepmania-song-validator-ci`. Follow an existing
-validation runner's `config.sh` and systemd user-service pattern when replacing
-the registration; registration tokens are short-lived and must never be saved
-in this repository, documentation, logs, or shell history.
+`arch-server-stepmania-song-validator-ci`. Its registration and container
+lifecycle are managed outside this repository. Registration tokens are
+short-lived and must never be saved in this repository, documentation, logs,
+or shell history.
 
 ## Required capability and isolation
 
-The runner needs Linux X64, Git, Bash, `/usr/bin/python3.11` with `venv`, and
-outbound package access for `pip`. Arch is a rolling distribution, so the
-workflow deliberately does not use `actions/setup-python`: that action does
-not provide compatible rolling-Arch Python builds. CI asserts Python 3.11,
-creates a job-local virtual environment under `RUNNER_TEMP`, and then keeps the
-existing `.[build]` installation, unit-test suite, package build, and
-fixture-library CLI smoke checks in `scripts/validate.sh`.
+The runner is a hardened, non-root Ubuntu container with Linux X64, Git, Bash,
+support for `actions/setup-python@v5`, and outbound package access for `pip`.
+The action installs Python 3.11 before CI performs the existing `.[build]`
+installation, unit-test suite, package build, and fixture-library CLI smoke
+checks in `scripts/validate.sh`.
+
+The runner container must have no host-directory binds, host home-directory
+access, Docker or other container-engine socket, or physical-device mappings.
+It must run as a non-root identity and must not be privileged. Replacing its
+image or runtime configuration requires re-verifying these isolation
+properties before accepting validation jobs.
 
 This validation identity must not have PyPI publishing identity, GitHub release
 write authority, deployment credentials, production secrets, SSH keys, a
@@ -63,8 +65,7 @@ infrastructure blocker.
 Run the same validation locally before opening a pull request:
 
 ```bash
-/usr/bin/python3.11 -c 'import sys; assert sys.version_info[:2] == (3, 11), sys.version'
-/usr/bin/python3.11 -m venv .venv
+python3.11 -m venv .venv
 . .venv/bin/activate
 python -m pip install ".[build]"
 bash scripts/validate.sh

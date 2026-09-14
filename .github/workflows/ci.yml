@@ -25,11 +25,10 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Verify runner Python
-        run: |
-          /usr/bin/python3.11 -c 'import sys; assert sys.version_info[:2] == (3, 11), sys.version'
-          /usr/bin/python3.11 -m venv "$RUNNER_TEMP/stepmania-song-validator-venv"
-          echo "$RUNNER_TEMP/stepmania-song-validator-venv/bin" >> "$GITHUB_PATH"
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
 
       - name: Install build tooling
         run: python -m pip install ".[build]"
