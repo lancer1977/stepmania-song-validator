@@ -49,6 +49,28 @@ class WorkflowRunnerPolicyTests(unittest.TestCase):
 
         self.assertNotIn("stepmania-song-validator]", workflow)
 
+    def test_release_write_authority_is_default_branch_dispatch_only(self):
+        workflow = self.read_workflow("release.yml")
+
+        self.assertIn("workflow_dispatch:", workflow)
+        self.assertNotIn("  push:\n", workflow)
+        self.assertIn(
+            "if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'",
+            workflow,
+        )
+        self.assertIn("contents: write", workflow)
+        self.assertIn("git merge-base --is-ancestor \"$SOURCE_SHA\" refs/remotes/origin/main", workflow)
+        self.assertIn("[[ \"$SOURCE_SHA\" =~ ^[0-9a-f]{40}$ ]]", workflow)
+        self.assertEqual(workflow.count("    if:"), 2)
+
+    def test_release_contract_is_documented(self):
+        docs = (ROOT / "docs" / "release.md").read_text()
+
+        self.assertIn("workflow_dispatch", docs)
+        self.assertIn("refs/heads/main", docs)
+        self.assertIn("rollback", docs.lower())
+        self.assertIn("PyPI", docs)
+
 
 if __name__ == "__main__":
     unittest.main()

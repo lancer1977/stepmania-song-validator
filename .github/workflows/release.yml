@@ -1,19 +1,28 @@
 name: Release
 
 on:
-  push:
-    branches:
-      - main
+  workflow_dispatch:
+    inputs:
+      source_sha:
+        description: Full 40-character commit SHA to validate and publish
+        required: true
+        type: string
 
 permissions:
-  contents: write
+  contents: read
+
+env:
+  SOURCE_SHA: ${{ inputs.source_sha }}
 
 jobs:
   publish-pypi:
     name: Publish to PyPI (trusted publishing)
+    # Only the trusted default-branch workflow may publish.
+    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' && vars.PYPI_PUBLISHING_ENABLED == 'true'
     runs-on: ubuntu-latest
     permissions:
       id-token: write
+      contents: read
     # Independent of the `release` job on purpose: this job publishes to PyPI
     # using Trusted Publishing (OIDC), which requires a one-time manual setup
     # on pypi.org (Add trusted publisher) before it will authenticate
@@ -24,10 +33,19 @@ jobs:
     # Gated on the PYPI_PUBLISHING_ENABLED repo variable so it no-ops (shows
     # as skipped, not failed) until PyPI-side setup is actually done. Flip it
     # on with: gh variable set PYPI_PUBLISHING_ENABLED --body true
-    if: vars.PYPI_PUBLISHING_ENABLED == 'true'
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ inputs.source_sha }}
+
+      - name: Verify immutable release source
+        run: |
+          [[ "$SOURCE_SHA" =~ ^[0-9a-f]{40}$ ]]
+          resolved_sha="$(git rev-parse --verify "${SOURCE_SHA}^{commit}")"
+          test "$SOURCE_SHA" = "$resolved_sha"
+          git merge-base --is-ancestor "$SOURCE_SHA" refs/remotes/origin/main
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -45,12 +63,24 @@ jobs:
 
   release:
     name: Build and publish package
+    # Keep contents:write scoped to this trusted default-branch dispatch job.
+    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - name: Checkout
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          ref: ${{ inputs.source_sha }}
+
+      - name: Verify immutable release source
+        run: |
+          [[ "$SOURCE_SHA" =~ ^[0-9a-f]{40}$ ]]
+          resolved_sha="$(git rev-parse --verify "${SOURCE_SHA}^{commit}")"
+          test "$SOURCE_SHA" = "$resolved_sha"
+          git merge-base --is-ancestor "$SOURCE_SHA" refs/remotes/origin/main
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -92,4 +122,4 @@ jobs:
             --title "stepmania-song-validator ${{ steps.version.outputs.tag }}" \
             --prerelease \
             --generate-notes \
-            --target "${{ github.sha }}"
+            --target "$SOURCE_SHA"
