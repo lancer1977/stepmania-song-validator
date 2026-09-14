@@ -33,7 +33,6 @@ jobs:
     # Gated on the PYPI_PUBLISHING_ENABLED repo variable so it no-ops (shows
     # as skipped, not failed) until PyPI-side setup is actually done. Flip it
     # on with: gh variable set PYPI_PUBLISHING_ENABLED --body true
-    if: vars.PYPI_PUBLISHING_ENABLED == 'true'
     steps:
       - name: Checkout
         uses: actions/checkout@v4

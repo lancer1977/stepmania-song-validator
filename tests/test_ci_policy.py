@@ -61,6 +61,7 @@ class WorkflowRunnerPolicyTests(unittest.TestCase):
         self.assertIn("contents: write", workflow)
         self.assertIn("git merge-base --is-ancestor \"$SOURCE_SHA\" refs/remotes/origin/main", workflow)
         self.assertIn("test \"$SOURCE_SHA\" =~ ^[0-9a-f]{40}$", workflow)
+        self.assertEqual(workflow.count("    if:"), 2)
 
     def test_release_contract_is_documented(self):
         docs = (ROOT / "docs" / "release.md").read_text()
