@@ -10,6 +10,7 @@ FORK_GUARD = (
     "if: github.event_name != 'pull_request' || "
     "github.event.pull_request.head.repo.full_name == github.repository"
 )
+FORK_BLOCKER = "if: github.event.pull_request.head.repo.full_name != github.repository"
 
 
 class WorkflowRunnerPolicyTests(unittest.TestCase):
@@ -32,6 +33,18 @@ class WorkflowRunnerPolicyTests(unittest.TestCase):
         self.assertIn('run: python -m pip install ".[build]"', workflow)
         self.assertIn("run: bash scripts/validate.sh", workflow)
         self.assertNotIn("ubuntu-latest", workflow)
+
+    def test_fork_prs_fail_without_executing_fork_code(self):
+        workflow = self.read_workflow("untrusted-pr-blocker.yml")
+
+        self.assertIn("pull_request_target:", workflow)
+        self.assertIn(FORK_BLOCKER, workflow)
+        self.assertIn(TRUSTED_RUNNER, workflow)
+        self.assertIn("exit 1", workflow)
+        self.assertIn("reproduce the accepted commit", workflow)
+        self.assertNotIn("actions/checkout", workflow)
+        self.assertNotIn("github.event.pull_request.head.sha", workflow)
+        self.assertNotIn("github.event.pull_request.head.ref", workflow)
 
     def test_release_workflow_stays_outside_validation_runner(self):
         workflow = self.read_workflow("release.yml")

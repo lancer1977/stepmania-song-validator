@@ -45,11 +45,18 @@ separate workflow and authority boundary.
 
 Same-repository pull requests and repository-owned `main` pushes may use the
 persistent validation runner. A pull request whose head repository differs
-from `github.repository` is skipped at the job boundary. There is deliberately
-no GitHub-hosted fallback: record fork validation or unavailable trusted
-capacity as a CI infrastructure blocker. To validate a fork contribution, a
-maintainer must first review it without executing it, then reproduce the
-accepted commit in a trusted repository branch and run CI there.
+from `github.repository` is skipped by the `CI / test` job. The separate
+`Untrusted PR policy / Fork validation blocked` check uses
+`pull_request_target`, so GitHub loads its definition from the trusted default
+branch rather than the fork. It performs no checkout and executes no
+pull-request-controlled value; its only step emits the remediation and fails.
+This prevents GitHub from treating the skipped test as sufficient validation.
+
+There is deliberately no GitHub-hosted fallback. To validate a fork
+contribution, a maintainer must first review it without executing it, reproduce
+the accepted commit in a trusted repository branch, and obtain a successful
+`CI / test` check there. Unavailable trusted capacity remains a CI
+infrastructure blocker.
 
 ## Validation and exact-head proof
 
@@ -69,3 +76,8 @@ The migration is proven only when an exact-head Actions job records the
 complete runner label set, checks out the intended revision, and completes
 `scripts/validate.sh`. A YAML change, queued job, skipped job, or job without
 checkout and validation steps is not proof.
+
+The fork blocker is proven after this workflow exists on `main` and a fork PR
+records a failed `Untrusted PR policy / Fork validation blocked` check with no
+checkout step. Do not add checkout, fork refs, fork SHAs, or commands derived
+from pull-request fields to the blocker workflow.
