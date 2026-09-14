@@ -17,7 +17,7 @@ env:
 jobs:
   publish-pypi:
     name: Publish to PyPI (trusted publishing)
-    # Only the reviewed workflow on protected main may publish.
+    # Only the trusted default-branch workflow may publish.
     if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' && vars.PYPI_PUBLISHING_ENABLED == 'true'
     runs-on: ubuntu-latest
     permissions:

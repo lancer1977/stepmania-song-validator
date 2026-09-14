@@ -19,7 +19,7 @@ gh workflow run release.yml \
 Both publication jobs require this exact `workflow_dispatch` event on
 `refs/heads/main`. A dispatch from another ref is skipped. The workflow also
 rejects abbreviated or non-lowercase SHAs and requires the selected commit to
-be an ancestor of `origin/main`, so the reviewed default-branch workflow cannot
+be an ancestor of `origin/main`, so the trusted default-branch workflow cannot
 publish an unrelated revision.
 
 PyPI publication is independently gated by the
