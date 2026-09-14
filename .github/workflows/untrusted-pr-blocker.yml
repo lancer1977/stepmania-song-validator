@@ -17,7 +17,8 @@ jobs:
   fork-policy-blocker:
     name: Fork validation blocked
     if: github.event.pull_request.head.repo.full_name != github.repository
-    runs-on: [self-hosted, Linux, X64, pr-validation, stepmania-song-validator]
+    # This job is a static policy signal only: keep it off persistent runners.
+    runs-on: ubuntu-latest
     steps:
       - name: Require trusted-branch reproduction
         run: |

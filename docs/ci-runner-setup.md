@@ -54,9 +54,11 @@ from `github.repository` is skipped by the `CI / test` job. The separate
 `pull_request_target`, so GitHub loads its definition from the trusted default
 branch rather than the fork. It performs no checkout and executes no
 pull-request-controlled value; its only step emits the remediation and fails.
-This prevents GitHub from treating the skipped test as sufficient validation.
+This static policy signal runs on `ubuntu-latest`, not the persistent validation
+runner, and prevents GitHub from treating the skipped test as sufficient
+validation.
 
-There is deliberately no GitHub-hosted fallback. To validate a fork
+There is deliberately no GitHub-hosted validation fallback. To validate a fork
 contribution, a maintainer must first review it without executing it, reproduce
 the accepted commit in a trusted repository branch, and obtain a successful
 `CI / test` check there. Unavailable trusted capacity remains a CI
