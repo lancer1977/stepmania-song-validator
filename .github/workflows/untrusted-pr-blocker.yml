@@ -1,0 +1,25 @@
+name: Untrusted PR policy
+
+# pull_request_target loads this workflow from the trusted default branch.
+# Never add checkout or execute pull-request-controlled data in this workflow.
+on:
+  pull_request_target:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: stepmania-song-validator-untrusted-pr-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  fork-policy-blocker:
+    name: Fork validation blocked
+    if: github.event.pull_request.head.repo.full_name != github.repository
+    runs-on: [self-hosted, Linux, X64, pr-validation, stepmania-song-validator]
+    steps:
+      - name: Require trusted-branch reproduction
+        run: |
+          echo "::error::Fork code cannot run on the persistent validation runner. A maintainer must review the contribution, reproduce the accepted commit on a trusted repository branch, and obtain a successful CI / test check there."
+          exit 1
