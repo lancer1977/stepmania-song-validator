@@ -1,0 +1,14 @@
+#TITLE:Non-finite Timing;
+#ARTIST:Test Artist;
+#MUSIC:song.mp3;
+#BPMS:nan=120,0=inf;
+#STOPS:inf=0.25,0=nan;
+#OFFSET:-inf;
+#NOTES:
+     dance-single:
+     Test:
+     Easy:
+     1:
+     0,0,0,0,0:
+1000
+;

@@ -30,6 +30,7 @@ class NotesBlock:
     meter: str | None
     measures: list[list[str]] = field(default_factory=list)  # measures -> note lines
     tags: dict[str, str] = field(default_factory=dict)  # SSC chart-local metadata
+    note_tag: str = "NOTES"
 
 
 @dataclass
@@ -127,11 +128,13 @@ def parse_simfile(path: Path) -> Simfile:
             found_any = True
             continue
 
-        if tag == "NOTES":
+        if tag == "NOTES" or (tag == "NOTES2" and chart_tags is not None):
             if chart_tags is None:
                 notes.append(_parse_notes_value(value, warnings))
             else:
-                notes.append(_parse_ssc_notes_value(value, chart_tags, warnings))
+                notes.append(
+                    _parse_ssc_notes_value(value, chart_tags, warnings, note_tag=tag)
+                )
                 chart_tags = None
         else:
             # First occurrence wins (matches StepMania's own behavior for
@@ -189,7 +192,11 @@ def _parse_notes_value(value: str, warnings: list[str]) -> NotesBlock:
 
 
 def _parse_ssc_notes_value(
-    value: str, chart_tags: dict[str, str], warnings: list[str]
+    value: str,
+    chart_tags: dict[str, str],
+    warnings: list[str],
+    *,
+    note_tag: str,
 ) -> NotesBlock:
     """Parse SSC note rows, whose chart metadata lives in preceding tags."""
     if not chart_tags.get("STEPSTYPE"):
@@ -205,6 +212,7 @@ def _parse_ssc_notes_value(
         meter=chart_tags.get("METER"),
         measures=_parse_note_measures(value),
         tags=dict(chart_tags),
+        note_tag=note_tag,
     )
 
 

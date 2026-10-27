@@ -28,8 +28,10 @@ class TestSimfileParser(unittest.TestCase):
         self.assertEqual(simfile.notes[0].tags["BPMS"], "0=120")
         self.assertEqual(simfile.notes[0].tags["OFFSET"], "0.125")
         self.assertEqual(simfile.notes[1].difficulty, "Hard")
+        self.assertEqual(simfile.notes[1].note_tag, "NOTES2")
         self.assertEqual(simfile.notes[1].tags["BPMS"], "0=180")
         self.assertEqual(simfile.notes[1].tags["DELAYS"], "4=0.25")
+        self.assertEqual(simfile.notes[1].measures[0][-1], "1000[1]")
         self.assertEqual(simfile.notes[0].measures[0], ["1000", "0100", "0010"])
 
     def test_parses_supported_subdivision_measure_lengths(self):

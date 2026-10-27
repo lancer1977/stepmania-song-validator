@@ -90,12 +90,25 @@ def check_song_folder(song_dir: Path) -> tuple[list[Finding], int]:
 def _check_music_references(simfile: Simfile, song_dir: Path) -> list[Finding]:
     findings: list[Finding] = []
     music = simfile.get("MUSIC")
-    chart_music = {block.tags.get("MUSIC") for block in simfile.notes}
-    chart_music.discard(None)
+    references: set[str] = set()
+    missing_effective_music = False
+    if not simfile.notes:
+        missing_effective_music = not music
+    else:
+        for block in simfile.notes:
+            chart_music = block.tags.get("MUSIC")
+            effective_music = chart_music if chart_music else music
+            if effective_music:
+                references.add(effective_music)
+            else:
+                missing_effective_music = True
 
-    if not music and (
-        not simfile.notes or any("MUSIC" not in block.tags for block in simfile.notes)
-    ):
+    # The song-level reference is also checked on its own. For an empty chart
+    # value it is the only song-folder path this validator can use as fallback.
+    if music:
+        references.add(music)
+
+    if missing_effective_music:
         findings.append(
             Finding(
                 category="chart_integrity",
@@ -105,12 +118,9 @@ def _check_music_references(simfile: Simfile, song_dir: Path) -> list[Finding]:
                 path=simfile.path,
             )
         )
-    references = set(chart_music)
-    if music:
-        references.add(music)
     for reference in sorted(references):
         music_path = song_dir / reference
-        if not music_path.exists():
+        if not music_path.is_file():
             findings.append(
                 Finding(
                     category="chart_integrity",
@@ -149,10 +159,16 @@ def _parse_timing_pairs(raw: str) -> tuple[list[tuple[float, float]], list[str]]
         except ValueError:
             errors.append(f"Non-numeric beat position: '{beat_str.strip()}'")
             continue
+        if not math.isfinite(beat):
+            errors.append(f"Non-finite beat position: '{beat_str.strip()}'")
+            continue
         try:
             value = float(value_str.strip())
         except ValueError:
             errors.append(f"Non-numeric value: '{value_str.strip()}'")
+            continue
+        if not math.isfinite(value):
+            errors.append(f"Non-finite value: '{value_str.strip()}'")
             continue
         pairs.append((beat, value))
 
@@ -165,8 +181,9 @@ def _check_timing(simfile: Simfile) -> list[Finding]:
     global_stops = simfile.get("STOPS")
     charts = simfile.notes
 
-    # Validate song timing once. A missing song BPMS is only an error when
-    # there is no chart-local BPMS to supply timing for one or more charts.
+    # Check song timing once, then validate each chart's declared timing tags.
+    # This checks declarations only; it does not build the engine's effective
+    # timing map or infer fallback for omitted chart tags.
     if global_bpms is not None:
         findings.extend(_check_bpms_value(global_bpms, simfile))
     elif not charts:
@@ -393,6 +410,7 @@ def _check_notes_structure(simfile: Simfile) -> list[Finding]:
 
     for idx, block in enumerate(simfile.notes):
         chart_label = block.difficulty or block.description or f"chart #{idx}"
+        has_keysound_annotations = False
 
         if not block.measures:
             findings.append(
@@ -408,7 +426,9 @@ def _check_notes_structure(simfile: Simfile) -> list[Finding]:
 
         for m_idx, measure in enumerate(block.measures):
             for line in measure:
-                if any(ch not in _VALID_NOTE_CHARS for ch in line):
+                note_symbols, has_annotation = _strip_keysound_annotations(line)
+                has_keysound_annotations = has_keysound_annotations or has_annotation
+                if any(ch not in _VALID_NOTE_CHARS for ch in note_symbols):
                     findings.append(
                         Finding(
                             category="chart_integrity",
@@ -416,11 +436,57 @@ def _check_notes_structure(simfile: Simfile) -> list[Finding]:
                             code="invalid_note_characters",
                             message=(
                                 f"Chart '{chart_label}' measure {m_idx} has "
-                                f"an invalid note line: '{line}'"
+                                f"a note line with unsupported symbols: '{line}'"
                             ),
                             path=simfile.path,
                         )
                     )
                     break  # one report per measure is enough
 
+        if block.note_tag == "NOTES2" or has_keysound_annotations:
+            details = []
+            if block.note_tag == "NOTES2":
+                details.append("#NOTES2 key-sounded chart data")
+            if has_keysound_annotations:
+                details.append("per-note keysound indices")
+            findings.append(
+                Finding(
+                    category="chart_integrity",
+                    severity=Severity.WARNING,
+                    code="unsupported_note_feature",
+                    message=(
+                        f"Chart '{chart_label}' contains recognized "
+                        f"{', '.join(details)}; keysound association and audio mapping "
+                        "are not validated"
+                    ),
+                    path=simfile.path,
+                )
+            )
+
     return findings
+
+
+def _strip_keysound_annotations(line: str) -> tuple[str, bool]:
+    """Drop engine-recognized bracket annotations while reporting them as unsupported."""
+    output: list[str] = []
+    found = False
+    idx = 0
+    annotation_for_previous_symbol = False
+    while idx < len(line):
+        if (
+            line[idx] == "["
+            and output
+            and output[-1] in _VALID_NOTE_CHARS
+            and not annotation_for_previous_symbol
+        ):
+            found = True
+            annotation_for_previous_symbol = True
+            end = line.find("]", idx + 1)
+            if end == -1:
+                break
+            idx = end + 1
+            continue
+        output.append(line[idx])
+        annotation_for_previous_symbol = False
+        idx += 1
+    return "".join(output), found
