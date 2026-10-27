@@ -5,13 +5,13 @@ Flags:
   - #MUSIC: reference pointing at a missing audio file
   - malformed #BPMS: / #STOPS: timing data (non-numeric, negative where
     invalid, unsorted beat positions)
-  - a #NOTES: measure whose note-line count doesn't divide evenly by 4
-    (structurally corrupt step data — StepMania measures are always a
-    multiple of 4 rows: quarter notes at minimum resolution)
+  - note rows containing symbols outside the source-confirmed engine vocabulary
+  - unsupported SSC chart-local playback tags, reported as warnings
 """
 
 from __future__ import annotations
 
+import math
 from pathlib import Path
 
 from ..models import Finding, Severity
@@ -19,9 +19,22 @@ from ..simfile_parser import Simfile, SimfileParseError, parse_simfile
 
 SIMFILE_EXTENSIONS = (".sm", ".ssc")
 
-# Valid characters on a StepMania note-data row: 0-3 (or more for ssc "extra"
-# note types), plus M for mines and hold/roll markers used by some formats.
-_VALID_NOTE_CHARS = set("0123456789MLFmlf")
+# StepMania/ITGmania NoteDataUtil recognizes these note-data symbols. Unknown
+# symbols are silently converted to empty notes by the engines, so this
+# validator reports them to avoid claiming that their note content was checked.
+_VALID_NOTE_CHARS = set("01234MKLF")
+_UNSUPPORTED_TIMING_TAGS = {
+    "ATTACKS",
+    "COMBOS",
+    "DELAYS",
+    "FAKES",
+    "LABELS",
+    "SCROLLS",
+    "SPEEDS",
+    "TICKCOUNTS",
+    "TIMESIGNATURES",
+    "WARPS",
+}
 
 
 def find_simfiles(song_dir: Path) -> list[Path]:
@@ -64,9 +77,9 @@ def check_song_folder(song_dir: Path) -> tuple[list[Finding], int]:
                 )
             )
 
-        findings.extend(_check_music_reference(simfile, song_dir))
-        findings.extend(_check_bpms(simfile))
-        findings.extend(_check_stops(simfile))
+        findings.extend(_check_music_references(simfile, song_dir))
+        findings.extend(_check_timing(simfile))
+        findings.extend(_check_unsupported_chart_features(simfile))
         findings.extend(_check_notes_structure(simfile))
 
         charts_scanned += len(simfile.notes)
@@ -74,10 +87,15 @@ def check_song_folder(song_dir: Path) -> tuple[list[Finding], int]:
     return findings, charts_scanned
 
 
-def _check_music_reference(simfile: Simfile, song_dir: Path) -> list[Finding]:
+def _check_music_references(simfile: Simfile, song_dir: Path) -> list[Finding]:
     findings: list[Finding] = []
     music = simfile.get("MUSIC")
-    if not music:
+    chart_music = {block.tags.get("MUSIC") for block in simfile.notes}
+    chart_music.discard(None)
+
+    if not music and (
+        not simfile.notes or any("MUSIC" not in block.tags for block in simfile.notes)
+    ):
         findings.append(
             Finding(
                 category="chart_integrity",
@@ -87,19 +105,21 @@ def _check_music_reference(simfile: Simfile, song_dir: Path) -> list[Finding]:
                 path=simfile.path,
             )
         )
-        return findings
-
-    music_path = song_dir / music
-    if not music_path.exists():
-        findings.append(
-            Finding(
-                category="chart_integrity",
-                severity=Severity.ERROR,
-                code="missing_music_file",
-                message=f"#MUSIC: references '{music}', which does not exist in {song_dir}",
-                path=simfile.path,
+    references = set(chart_music)
+    if music:
+        references.add(music)
+    for reference in sorted(references):
+        music_path = song_dir / reference
+        if not music_path.exists():
+            findings.append(
+                Finding(
+                    category="chart_integrity",
+                    severity=Severity.ERROR,
+                    code="missing_music_file",
+                    message=f"#MUSIC: references '{reference}', which does not exist in {song_dir}",
+                    path=simfile.path,
+                )
             )
-        )
     return findings
 
 
@@ -139,16 +159,62 @@ def _parse_timing_pairs(raw: str) -> tuple[list[tuple[float, float]], list[str]]
     return pairs, errors
 
 
-def _check_bpms(simfile: Simfile) -> list[Finding]:
+def _check_timing(simfile: Simfile) -> list[Finding]:
     findings: list[Finding] = []
-    raw = simfile.get("BPMS")
+    global_bpms = simfile.get("BPMS")
+    global_stops = simfile.get("STOPS")
+    charts = simfile.notes
+
+    # Validate song timing once. A missing song BPMS is only an error when
+    # there is no chart-local BPMS to supply timing for one or more charts.
+    if global_bpms is not None:
+        findings.extend(_check_bpms_value(global_bpms, simfile))
+    elif not charts:
+        findings.extend(_check_bpms_value(None, simfile))
+
+    if global_stops is not None:
+        findings.extend(_check_stops_value(global_stops, simfile))
+    global_offset = simfile.get("OFFSET")
+    if global_offset is not None:
+        findings.extend(_check_offset_value(global_offset, simfile))
+
+    for idx, chart in enumerate(charts):
+        label = chart.difficulty or chart.description or f"chart #{idx}"
+        if "BPMS" in chart.tags:
+            findings.extend(_check_bpms_value(chart.tags["BPMS"], simfile, label))
+        elif global_bpms is None:
+            # Report one missing timing source per chart to identify precisely
+            # which SSC chart lacks both song and chart timing.
+            findings.append(
+                Finding(
+                    category="chart_integrity",
+                    severity=Severity.ERROR,
+                    code="missing_bpms",
+                    message=f"Chart '{label}' has no chart-local or song-level #BPMS: tag",
+                    path=simfile.path,
+                )
+            )
+
+        if "STOPS" in chart.tags:
+            findings.extend(_check_stops_value(chart.tags["STOPS"], simfile, label))
+        if "OFFSET" in chart.tags:
+            findings.extend(_check_offset_value(chart.tags["OFFSET"], simfile, label))
+
+    return findings
+
+
+def _check_bpms_value(
+    raw: str | None, simfile: Simfile, chart_label: str | None = None
+) -> list[Finding]:
+    findings: list[Finding] = []
+    scope = f" in chart '{chart_label}'" if chart_label else ""
     if raw is None:
         findings.append(
             Finding(
                 category="chart_integrity",
                 severity=Severity.ERROR,
                 code="missing_bpms",
-                message="No #BPMS: tag found",
+                message=f"No #BPMS: tag found{scope}",
                 path=simfile.path,
             )
         )
@@ -161,7 +227,7 @@ def _check_bpms(simfile: Simfile) -> list[Finding]:
                 category="chart_integrity",
                 severity=Severity.ERROR,
                 code="malformed_bpms",
-                message=f"#BPMS: {err}",
+                message=f"#BPMS:{scope} {err}",
                 path=simfile.path,
             )
         )
@@ -172,7 +238,7 @@ def _check_bpms(simfile: Simfile) -> list[Finding]:
                 category="chart_integrity",
                 severity=Severity.ERROR,
                 code="empty_bpms",
-                message="#BPMS: has no timing entries",
+                message=f"#BPMS:{scope} has no timing entries",
                 path=simfile.path,
             )
         )
@@ -185,7 +251,9 @@ def _check_bpms(simfile: Simfile) -> list[Finding]:
                     category="chart_integrity",
                     severity=Severity.ERROR,
                     code="invalid_bpm_value",
-                    message=f"#BPMS: BPM value {bpm} at beat {beat} must be positive",
+                    message=(
+                        f"#BPMS:{scope} BPM value {bpm} at beat {beat} must be positive"
+                    ),
                     path=simfile.path,
                 )
             )
@@ -197,7 +265,7 @@ def _check_bpms(simfile: Simfile) -> list[Finding]:
                 category="chart_integrity",
                 severity=Severity.ERROR,
                 code="unsorted_bpms",
-                message="#BPMS: beat positions are not in ascending order",
+                message=f"#BPMS:{scope} beat positions are not in ascending order",
                 path=simfile.path,
             )
         )
@@ -205,11 +273,11 @@ def _check_bpms(simfile: Simfile) -> list[Finding]:
     return findings
 
 
-def _check_stops(simfile: Simfile) -> list[Finding]:
+def _check_stops_value(
+    raw: str, simfile: Simfile, chart_label: str | None = None
+) -> list[Finding]:
     findings: list[Finding] = []
-    raw = simfile.get("STOPS")
-    if raw is None:
-        return findings  # #STOPS: is optional
+    scope = f" in chart '{chart_label}'" if chart_label else ""
 
     pairs, errors = _parse_timing_pairs(raw)
     for err in errors:
@@ -218,7 +286,7 @@ def _check_stops(simfile: Simfile) -> list[Finding]:
                 category="chart_integrity",
                 severity=Severity.ERROR,
                 code="malformed_stops",
-                message=f"#STOPS: {err}",
+                message=f"#STOPS:{scope} {err}",
                 path=simfile.path,
             )
         )
@@ -230,7 +298,9 @@ def _check_stops(simfile: Simfile) -> list[Finding]:
                     category="chart_integrity",
                     severity=Severity.ERROR,
                     code="negative_stop_duration",
-                    message=f"#STOPS: negative stop duration {duration} at beat {beat}",
+                    message=(
+                        f"#STOPS:{scope} negative stop duration {duration} at beat {beat}"
+                    ),
                     path=simfile.path,
                 )
             )
@@ -242,11 +312,68 @@ def _check_stops(simfile: Simfile) -> list[Finding]:
                 category="chart_integrity",
                 severity=Severity.ERROR,
                 code="unsorted_stops",
-                message="#STOPS: beat positions are not in ascending order",
+                message=f"#STOPS:{scope} beat positions are not in ascending order",
                 path=simfile.path,
             )
         )
 
+    return findings
+
+
+def _check_offset_value(
+    raw: str, simfile: Simfile, chart_label: str | None = None
+) -> list[Finding]:
+    try:
+        value = float(raw)
+    except ValueError:
+        valid = False
+    else:
+        valid = math.isfinite(value)
+    if valid:
+        return []
+
+    scope = f" in chart '{chart_label}'" if chart_label else ""
+    return [
+        Finding(
+            category="chart_integrity",
+            severity=Severity.ERROR,
+            code="malformed_offset",
+            message=f"#OFFSET:{scope} must be a finite numeric value",
+            path=simfile.path,
+        )
+    ]
+
+
+def _check_unsupported_chart_features(simfile: Simfile) -> list[Finding]:
+    findings: list[Finding] = []
+    for tag in sorted(_UNSUPPORTED_TIMING_TAGS.intersection(simfile.tags)):
+        findings.append(
+            Finding(
+                category="chart_integrity",
+                severity=Severity.WARNING,
+                code="unsupported_timing_feature",
+                message=(
+                    f"Song-level #{tag}: is not checked by this validator's "
+                    "supported subset"
+                ),
+                path=simfile.path,
+            )
+        )
+    for idx, chart in enumerate(simfile.notes):
+        label = chart.difficulty or chart.description or f"chart #{idx}"
+        for tag in sorted(_UNSUPPORTED_TIMING_TAGS.intersection(chart.tags)):
+            findings.append(
+                Finding(
+                    category="chart_integrity",
+                    severity=Severity.WARNING,
+                    code="unsupported_timing_feature",
+                    message=(
+                        f"Chart '{label}' uses SSC #{tag}:, which is not checked "
+                        "by this validator's supported subset"
+                    ),
+                    path=simfile.path,
+                )
+            )
     return findings
 
 
@@ -280,21 +407,6 @@ def _check_notes_structure(simfile: Simfile) -> list[Finding]:
             continue
 
         for m_idx, measure in enumerate(block.measures):
-            if len(measure) % 4 != 0:
-                findings.append(
-                    Finding(
-                        category="chart_integrity",
-                        severity=Severity.ERROR,
-                        code="malformed_measure_length",
-                        message=(
-                            f"Chart '{chart_label}' measure {m_idx} has "
-                            f"{len(measure)} note lines, which is not evenly "
-                            "divisible by 4 (structurally corrupt)"
-                        ),
-                        path=simfile.path,
-                    )
-                )
-
             for line in measure:
                 if any(ch not in _VALID_NOTE_CHARS for ch in line):
                     findings.append(

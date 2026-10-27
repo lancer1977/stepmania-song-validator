@@ -56,10 +56,33 @@ Exit code is `0` when no errors were found (warnings do not fail the run) and
 - Malformed `#BPMS:` / `#STOPS:` timing data: non-numeric beat/value entries,
   non-positive BPM values, negative stop durations, and beat positions that
   are not in ascending order.
-- A `#NOTES:` measure whose row count isn't evenly divisible by 4 (StepMania
-  measures are always a multiple of 4 rows at minimum resolution --
-  anything else indicates structurally corrupt step data), and note rows
-  containing characters outside the valid step/mine/hold vocabulary.
+- SM and SSC chart rows using the engine's supported note symbols (`0`–`4`,
+  `M`, `K`, `L`, `F`). Unknown symbols are errors in this validator because
+  the engine silently turns unrecognized symbols into empty notes.
+- Chart-local SSC `#MUSIC:`, `#BPMS:`, `#STOPS:` and finite numeric `#OFFSET:`
+  values, including multiple charts with different music or timing maps.
+  Song-level music and timing are also checked. Known chart-local playback
+  tags outside this subset (such as `#DELAYS:` or `#WARPS:`) produce a warning
+  and do not fail the run; those effects have not been validated here.
+
+Measure row counts are not required to be divisible by four. StepMania and
+ITGmania map each nonempty row's proportional position in a measure to an
+engine note row; the loader does not reject a measure based on its line count.
+The validator therefore checks note symbols and supported timing references,
+not measure row-count divisibility. This behavior is grounded in the pinned
+upstream implementations: [StepMania `NoteDataUtil.cpp` at
+`825467b`](https://github.com/stepmania/stepmania/blob/825467bcd81c812b33ad684dc04dd151b2d5dec3/src/NoteDataUtil.cpp#L62-L204)
+and [ITGmania `NoteDataUtil.cpp` at
+`8a3bf88`](https://github.com/itgmania/itgmania/blob/8a3bf8884acdcb69363f7f0ea592138e398c71e4/src/NoteDataUtil.cpp#L127-L205).
+Their SSC loaders associate music and timing tags with individual charts; see
+[StepMania `NotesLoaderSSC.cpp`](https://github.com/stepmania/stepmania/blob/825467bcd81c812b33ad684dc04dd151b2d5dec3/src/NotesLoaderSSC.cpp#L391-L508)
+and [ITGmania `NotesLoaderSSC.cpp`](https://github.com/itgmania/itgmania/blob/8a3bf8884acdcb69363f7f0ea592138e398c71e4/src/NotesLoaderSSC.cpp#L494-L585).
+
+Compatibility note: the validator no longer emits the `malformed_measure_length`
+finding for non-multiple-of-four rows. JSON report fields, categories and CLI
+exit semantics remain unchanged. Unsupported SSC chart playback tags are
+reported with warning severity, separate from malformed syntax and content
+errors.
 
 ### 2. Duplicate detection
 
@@ -110,13 +133,15 @@ scripts/validate.sh
 
 Test fixtures live under `tests/fixtures/`:
 
-- `valid_library/` -- a well-formed two-level library, including a
-  deliberate duplicate pair (`DuplicateSong1` / `DuplicateSong2`, identical
-  audio content and matching title/artist/BPM).
+- `valid_library/` -- a well-formed two-level library, including sparse and
+  three-row measures, 8/12/24-row subdivisions, a multi-chart SSC with
+  chart-local music/timing, and a deliberate duplicate pair
+  (`DuplicateSong1` / `DuplicateSong2`, identical audio content and matching
+  title/artist/BPM).
 - `broken_library/` -- deliberately broken cases: a missing `#MUSIC:`
-  reference, malformed `#BPMS:`/`#STOPS:`, a measure with a bad row count, an
-  unparseable file, a song folder missing its group folder, and a song
-  folder with a shell-risky name.
+  reference, malformed `#BPMS:`/`#STOPS:`, invalid note symbols, malformed
+  SSC timing and chart-local missing music, an unparseable file, a song folder
+  missing its group folder, and a song folder with a shell-risky name.
 
 ## Documentation
 

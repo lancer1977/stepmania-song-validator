@@ -1,0 +1,15 @@
+#TITLE:Malformed SSC Fixture;
+#ARTIST:Test Artist;
+#MUSIC:song.mp3;
+#BPMS:0=120;
+#NOTEDATA:;
+#STEPSTYPE:dance-single;
+#DESCRIPTION:Broken chart;
+#DIFFICULTY:Easy;
+#METER:4;
+#MUSIC:missing-chart-audio.ogg;
+#BPMS:zero=fast;
+#OFFSET:fast;
+#NOTES:
+100X
+;

@@ -12,7 +12,7 @@ FIXTURES = Path(__file__).parent / "fixtures"
 class TestValidator(unittest.TestCase):
     def test_valid_library_passes(self):
         report = validate_library(FIXTURES / "valid_library")
-        self.assertEqual(report.songs_scanned, 3)
+        self.assertEqual(report.songs_scanned, 6)
         self.assertGreaterEqual(report.charts_scanned, 3)
         # DuplicateSong1/2 still produce warnings, but no errors.
         self.assertEqual(report.error_count, 0)
