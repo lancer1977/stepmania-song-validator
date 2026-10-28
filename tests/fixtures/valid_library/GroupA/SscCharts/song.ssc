@@ -1,0 +1,39 @@
+#TITLE:SSC Chart Fixture;
+#ARTIST:Test Artist;
+#MUSIC:song.mp3;
+#BPMS:0=100;
+#NOTEDATA:;
+#STEPSTYPE:dance-single;
+#DESCRIPTION:Easy chart;
+#DIFFICULTY:Easy;
+#METER:3;
+#MUSIC:easy.ogg;
+#BPMS:0=120;
+#STOPS:;
+#OFFSET:0.125;
+#NOTES:
+1000
+0100
+0010
+,
+0000
+;
+#NOTEDATA:;
+#STEPSTYPE:dance-single;
+#DESCRIPTION:Hard chart;
+#DIFFICULTY:Hard;
+#METER:8;
+#MUSIC:;
+#BPMS:0=180;
+#STOPS:4=0.5;
+#DELAYS:4=0.25;
+#NOTES2:
+2000
+3000
+4000
+M000
+K000
+L000
+F000
+1000[1]
+;

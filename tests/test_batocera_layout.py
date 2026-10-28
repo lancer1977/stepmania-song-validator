@@ -10,7 +10,7 @@ class TestBatoceraLayout(unittest.TestCase):
     def test_valid_library_has_no_layout_findings(self):
         findings, valid_song_dirs = check_library_layout(FIXTURES / "valid_library")
         self.assertEqual(findings, [])
-        self.assertEqual(len(valid_song_dirs), 3)
+        self.assertEqual(len(valid_song_dirs), 6)
 
     def test_flat_song_no_group_flagged(self):
         findings, _ = check_library_layout(FIXTURES / "broken_library")
